@@ -54,3 +54,4 @@ kubectl expose service prometheus-server --type=LoadBalancer --target-port=9090 
 
 $(sleep 100)
 kubectl get service front-end -n sock-shop
+kubectl get service prometheus-server-ext

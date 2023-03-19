@@ -36,8 +36,8 @@ export TF_VAR_token=$token
 # running terraform 
 terraform init 
 terraform apply -auto-approve 
-export KUBE_VAR=`terraform output --raw kubeconfig` && echo $KUBE_VAR | base64 -Dd > lke-cluster-config.yaml
-export KUBECONFIG=$(pwd)/lke-cluster-config.yaml
+export KUBE_VAR=`terraform output --raw kubeconfig` && echo $KUBE_VAR | base64 -d -i > lke-cluster-config.yaml
+export KUBECONFIG=lke-cluster-config.yaml
 # run the 
 kubectl create -f complete-demo.yaml
 
@@ -50,7 +50,7 @@ helm repo update
 helm install prometheus prometheus-community/prometheus
 # it includes prometheus into pods 
 # expose prometheus by giving it a service of nodeport
-kubectl expose service prometheus-server --type=Loadbalancer --target-port=9090 --name=prometheus-server-ext
+kubectl expose service prometheus-server --type=LoadBalancer --target-port=9090 --name=prometheus-server-ext
 
-$(sleep 10)
+$(sleep 100)
 kubectl get service front-end -n sock-shop

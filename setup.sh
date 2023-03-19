@@ -1,4 +1,10 @@
 #!/bin/bash 
+
+# CREATING CLUSTER AND RUNNING KUBERNETES CREATE
+read -p 'Input your Linode token: ' token
+export TF_VAR_token=$token
+
+
 # install terraform , install kubctl
 sudo apt-get update 
 sudo apt-get install -y gnupg software-properties-common
@@ -30,20 +36,17 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.
 sudo apt-get update
 sudo apt-get install helm
 
-# CREATING CLUSTER AND RUNNING KUBERNETES CREATE
-read -p 'Input your Linode token: ' token
-export TF_VAR_token=$token
+
 # running terraform 
 terraform init 
 terraform apply -auto-approve 
 export KUBE_VAR=`terraform output --raw kubeconfig` && echo $KUBE_VAR | base64 -d -i > lke-cluster-config.yaml
 export KUBECONFIG=lke-cluster-config.yaml
 # run the 
-kubectl create -f complete-demo.yaml
-
+kubectl create -f sock-shop-k8s.yaml
+kubectl create -f app-voting-k8s.yaml
 
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-
 helm repo update
 
 # should already have kubernetes cluster here
@@ -54,4 +57,6 @@ kubectl expose service prometheus-server --type=LoadBalancer --target-port=9090 
 
 $(sleep 100)
 kubectl get service front-end -n sock-shop
+kubectl get service result-service -n voting-application
+kubectl get service voting-service -n voting-application
 kubectl get service prometheus-server-ext

@@ -3,8 +3,18 @@ variable "token" {
 }
 
 variable "externalip" {
-  description = "Your Linode API Personal Access Token. (required)"
+  description = "Your Load balancer IP"
   default = "0.0.0.0"
+}
+
+variable "domainName" {
+  description = "Your domain name"
+  default = "dudeyouhavenoidea.me"
+}
+
+variable "email" {
+  description = "Your domain email"
+  default = "bamiayo90@gmail.com"
 }
 
 variable "k8s_version" {

@@ -4,7 +4,7 @@
 
 resource "linode_domain" "foobar" {
     type = "master"
-    domain = "dudeyouhavenoidea.com"
+    domain = "dudeyouhavenoidea.me"
     soa_email = "bamiayo90@gmail.com"
     tags = ["foo", "bar"]
 }

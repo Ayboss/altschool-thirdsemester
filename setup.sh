@@ -47,11 +47,19 @@ kubectl create -f sock-shop-k8s.yaml
 kubectl create -f app-voting-k8s.yaml
 
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 
+
+
 # should already have kubernetes cluster here
+helm install ingress-nginx ingress-nginx/ingress-nginx
 helm install prometheus prometheus-community/prometheus
+
 # it includes prometheus into pods 
+kubectl apply -f ingress/ingress.yaml
+
+
 # expose prometheus by giving it a service of nodeport
 kubectl expose service prometheus-server --type=LoadBalancer --target-port=9090 --name=prometheus-server-ext
 

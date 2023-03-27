@@ -2,7 +2,6 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: app-ingress
-  namespace: voting-application
 spec:
   rules:
     - host: result.dudeyouhavenoidea.me
@@ -27,15 +26,7 @@ spec:
             pathType: Prefix
             path: "/"
 
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: sock-ingress
-  namespace: sock-shop
-spec:
-  rules:
-    - host: sockshop.dudeyouhavenoidea.me
+    - host: ockshop.dudeyouhavenoidea.me
       http:
         paths:
           - backend:

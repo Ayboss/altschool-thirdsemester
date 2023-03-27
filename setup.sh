@@ -63,8 +63,4 @@ kubectl apply -f ingress/ingress.yaml
 # expose prometheus by giving it a service of nodeport
 kubectl expose service prometheus-server --type=LoadBalancer --target-port=9090 --name=prometheus-server-ext
 
-$(sleep 100)
-kubectl get service front-end -n sock-shop
-kubectl get service result-service -n voting-application
-kubectl get service voting-service -n voting-application
 kubectl get service prometheus-server-ext

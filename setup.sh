@@ -40,7 +40,7 @@ sudo apt-get install helm
 # running terraform 
 terraform -chdir=terraform-k83/ init 
 terraform -chdir=terraform-k83/ apply -auto-approve 
-export KUBE_VAR=`terraform output --raw kubeconfig` && echo $KUBE_VAR | base64 -d -i > lke-cluster-config.yaml
+export KUBE_VAR=`terraform -chdir=terraform-k83/ output --raw kubeconfig` && echo $KUBE_VAR | base64 -d -i > lke-cluster-config.yaml
 export KUBECONFIG=lke-cluster-config.yaml
 # run the 
 kubectl create -f sock-shop-k8s.yaml

@@ -65,8 +65,8 @@ kubectl expose service prometheus-server --type=ClusterIP  --target-port=9090 --
 
 kubectl get service prometheus-server-ext
 
-TF_VAR_externalip=$(kubectl get services ingress-nginx-controller --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
-
+externalip=$(kubectl get services ingress-nginx-controller --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export TF_VAR_externalip=$externalip
 
 # do terraform again 
 terraform -chdir=terraform-domain/ init

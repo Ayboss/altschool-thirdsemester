@@ -61,6 +61,14 @@ kubectl apply -f ingress/ingress.yaml
 
 
 # expose prometheus by giving it a service of nodeport
-kubectl expose service prometheus-server --type=LoadBalancer --target-port=9090 --name=prometheus-server-ext
+kubectl expose service prometheus-server --type=ClusterIP  --target-port=9090 --name=prometheus-server-ext
 
 kubectl get service prometheus-server-ext
+
+$externalip=$(kubectl get services ingress-nginx-controller --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export TF_VAR_externalip=$externalip
+
+# do terraform again 
+terraform -chdir=terraform-domain/ init
+terraform -chdir=terraform-domain/ apply -auto-approve 
+

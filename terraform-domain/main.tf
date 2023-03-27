@@ -9,16 +9,23 @@ resource "linode_domain" "foobar" {
     tags = ["foo", "bar"]
 }
 
-resource "linode_domain_record" "foobar" {
+resource "linode_domain_record" "result" {
     domain_id = linode_domain.foobar.id
-    name = "blog"
+    name = "result"
     record_type = "AAAA"
     target = var.externalip
 }
 
-resource "linode_domain_record" "foobar2" {
+resource "linode_domain_record" "voting" {
     domain_id = linode_domain.foobar.id
-    name = "shop"
+    name = "voting"
+    record_type = "AAAA"
+    target = var.externalip
+}
+
+resource "linode_domain_record" "minisock" {
+    domain_id = linode_domain.foobar.id
+    name = "minisock"
     record_type = "AAAA"
     target = var.externalip
 }

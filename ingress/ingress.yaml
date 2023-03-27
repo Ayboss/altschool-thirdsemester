@@ -28,7 +28,7 @@ spec:
             pathType: Prefix
             path: "/"
 
-    - host: ockshop.dudeyouhavenoidea.me
+    - host: minisock.dudeyouhavenoidea.me
       http:
         paths:
           - backend:

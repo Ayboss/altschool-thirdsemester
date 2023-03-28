@@ -1,0 +1,338 @@
+version: 2.1
+commands:
+  install_terraform:
+    description: Install Terraform
+    steps:
+      - run:
+          name: Install Terraform
+          command: |
+            curl -LO "https://releases.hashicorp.com/terraform/1.0.0/terraform_1.0.0_linux_amd64.zip"
+            unzip terraform_1.0.0_linux_amd64.zip
+            sudo mv terraform /usr/local/bin/
+            terraform -v
+  install_kubectl:
+    description: Install kubectl
+    steps:
+      - run:
+          name: Install kubectl
+          command: |
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+
+  install_helm:
+    description: install helm for kubernetes
+    steps:
+      - run:
+          name: install helm
+          command: |
+            curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+            sudo apt-get install apt-transport-https --yes
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+            sudo apt-get update
+            sudo apt-get install helm
+
+  configure_kubectl:
+    description: Configure kubectl
+    steps:
+      - run:
+          name: Configure kubectl
+          command: |
+            aws eks --region $AWS_REGION update-kubeconfig --name $EKS_CLUSTER_NAME
+
+jobs:
+  init:
+    working_directory: /tmp/project
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - checkout
+      - run:
+          name: Terraform init
+          command: |
+            cd terraform-kubernetes/
+            terraform init -input=false
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  plan:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Terraform plan
+          command: |
+            cd terraform-kubernetes/
+            terraform plan -out terraform-apply
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  apply:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Terraform apply
+          command: |
+            cd terraform-kubernetes/
+            terraform apply -auto-approve terraform-apply
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  plan-destroy:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform create destroy plan
+          command: |
+            cd terraform-kubernetes/
+            terraform plan -destroy -out terraform-destroy
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  destroy:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform destroy
+          command: |
+            # kubectl delete --all pods -n sock-shop
+            # kubectl delete --all services -n sock-shop
+            # kubectl delete --all deployments -n sock-shop
+            # kubectl delete --all pods -n default
+            # kubectl delete --all services -n default
+            # kubectl delete --all deployments -n default 
+            cd terraform-kubernetes/
+            terraform apply -auto-approve terraform-destroy
+
+  # stop:
+  #   docker:
+  #     - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+  #   steps:
+  #     - attach_workspace:
+  #         at: .
+  #     - run:
+  #         name: terraform destroy
+  #         command: |
+  #           cd terraform-kubernetes/
+  #           terraform apply -auto-approve terraform-destroy
+
+  configure-domain:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - attach_workspace:
+          at: .
+      - checkout
+      - install_awscli
+      - install_terraform
+      - install_kubectl
+      - configure_kubectl
+      - run:
+          name: Terraform init
+          command: |
+            cd terraform-domain/
+            terraform init -input=false -var="encrypted-sock-shop-loadbalancer=$(kubectl get service front-end -n sock-shop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')" -var="encrypted-voting-app-loadbalancer=$(kubectl get service voting-service -n voting-application -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  plan-domain:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - attach_workspace:
+          at: .
+      - checkout
+      - install_awscli
+      - install_kubectl
+      - configure_kubectl
+      - install_terraform
+      - run:
+          name: Terraform plan
+          command: |
+            cd terraform-domain/
+            bash decrypt.sh
+            terraform plan -out tf-apply -var="encrypted-sock-shop-loadbalancer=<(head -1 n decrypt-sock-shop.txt)" -var="encrypted-voting-app-loadbalancer=<(head -n 1 decrypt-voting-app.txt)"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  apply-domain:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - attach_workspace:
+          at: .
+      - checkout
+      - install_awscli
+      - install_kubectl
+      - configure_kubectl
+      - install_terraform
+      - run:
+          name: Terraform apply
+          command: |
+            cd terraform-domain/
+            terraform apply -auto-approve tf-apply -var="encrypted-sock-shop-loadbalancer=$(kubectl get service front-end -n sock-shop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')" -var="encrypted-voting-app-loadbalancer=$(kubectl get service voting-service -n voting-application -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  plan-destroy-domain:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - attach_workspace:
+          at: .
+      - checkout
+      - install_awscli
+      - install_kubectl
+      - configure_kubectl
+      - install_terraform
+      - run:
+          name: terraform create destroy plan
+          command: |
+            cd terraform-domain/
+            terraform plan -destroy -out tf-destroy -var="encrypted-sock-shop-loadbalancer=$(kubectl get service front-end -n sock-shop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')" -var="encrypted-voting-app-loadbalancer=$(kubectl get service voting-service -n voting-application -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  destroy-domain:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - attach_workspace:
+          at: .
+      - checkout
+      - install_awscli
+      - install_kubectl
+      - configure_kubectl
+      - install_terraform
+      - run:
+          name: terraform destroy
+          command: |
+            cd terraform-domain/
+            terraform apply -auto-approve tf-destroy -var="encrypted-sock-shop-loadbalancer=$(kubectl get service front-end -n sock-shop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')" -var="encrypted-voting-app-loadbalancer=$(kubectl get service voting-service -n voting-application -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+
+  delete-all-pods:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - checkout
+      - install_awscli
+      - install_kubectl
+      - configure_kubectl
+      - run:
+          name: Delete from EKS cluster
+          command: |
+            # kubectl apply -f kubernetes-sock-shop/manifests-monitoring/
+            # bash setup.sh
+            kubectl delete --all pods -n sock-shop
+            kubectl delete --all services -n sock-shop
+            kubectl delete --all deployments -n sock-shop
+            kubectl delete --all pods -n default
+            kubectl delete --all services -n default
+            kubectl delete --all deployments -n default
+  sock-shop:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - checkout
+      - install_awscli
+      - install_kubectl
+      - configure_kubectl
+      - run:
+          name: Deploy sock-shop to EKS cluster
+          command: |
+            kubectl create namespace sock-shop
+            kubectl apply -f kubernetes-sock-shop
+            sleep 200
+            kubectl get services -n sock-shop
+            # kubectl get svc -n sock-shop -o jsonpath='{.items[?(@.spec.type=="LoadBalancer")].status.loadBalancer.ingress[0].ip}'
+            # kubectl get service -n sock-shop front-end -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+            kubectl get service front-end -n sock-shop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+  prometheus:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - checkout
+      - install_awscli
+      - install_kubectl
+      - configure_kubectl
+      - run:
+          name: Deploy image to EKS cluster
+          command: |
+            kubectl apply -f kubernetes-sock-shop/manifests-monitoring/
+            bash setup.sh
+            # kubectl delete --all pods -n sock-shop
+            # kubectl delete --all services -n sock-shop
+            # kubectl delete --all deployments -n sock-shop
+            # kubectl delete --all pods -n default
+            # kubectl delete --all services -n default
+            # kubectl delete --all deployments -n default
+      # - delete-all-pods
+
+workflows:
+  version: 2
+  deploy-apps:
+    jobs:
+      # - init
+      # - plan:
+      #     requires: [init]
+      # - hold-apply:
+      #     type: approval
+      #     requires: [plan]
+      # - apply:
+      #     requires: [hold-apply]
+      # - plan-destroy:
+      #     requires: [apply, sock-shop, prometheus]
+      # - hold-destroy:
+      #     type: approval
+      #     requires: [plan-destroy]
+      # - destroy:
+      #     requires: [hold-destroy]
+      # - delete-all-pods:
+      #     requires: [hold-destroy]
+      # - build-my-app:
+      #     requires: [apply]
+      # - deploy-my-app:
+      #     requires: [build-my-app]
+      # - sock-shop:
+      #     requires: [apply]
+      # - prometheus:
+      #     requires: [apply]
+      - configure-domain
+        # requires: [sock-shop, prometheus, deploy-my-app]
+      - plan-domain:
+          requires: [configure-domain]
+      - hold-apply-domain:
+          type: approval
+          requires: [plan-domain]
+      - apply-domain:
+          requires: [hold-apply-domain]
+      - plan-destroy-domain:
+          requires: [apply-domain]
+      - hold-destroy-domain:
+          type: approval
+          requires: [plan-destroy-domain]
+      - destroy-domain:
+          requires: [hold-destroy-domain]

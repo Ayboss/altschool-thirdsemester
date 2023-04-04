@@ -25,8 +25,12 @@ kubectl creates the pods and services and helm installs prometheus for logging a
 Another Terraform configuration runs lastly to register the domain name and subdomains in Linodes A record.
 
 - result.dudeyouhavenoidea.me
+<img width="1503" alt="Screenshot 2023-03-28 at 14 47 27" src="https://user-images.githubusercontent.com/58921991/229926717-00b96458-4389-48d3-b5e3-609bba884b00.png">
+
 - voting.dudeyouhavenoidea.me
 - minisock.dudeyouhavenoidea.me
+<img width="1498" alt="Screenshot 2023-03-28 at 14 49 06" src="https://user-images.githubusercontent.com/58921991/229926743-974f6326-7467-4358-b3ad-1294c12263a8.png">
+
 
 ### NOTE
 
